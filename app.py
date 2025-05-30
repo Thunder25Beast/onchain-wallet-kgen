@@ -29,35 +29,50 @@ if st.button("Generate Persona"):
                     st.markdown(f"**Classifications:** {', '.join(features.get('classifications', []))}")
                     st.markdown(f"**Persona Profile:**\n\n{features.get('persona_profile', 'N/A')}")
 
-                    # Scores
-                    st.subheader("Scores & Risk Assessment")
-                    col1, col2, col3 = st.columns(3)
-                    if features.get('wallet_health_score', 0):
-                        col1.metric("Wallet Health Score", features.get('wallet_health_score'), "0-100")
-                    if features.get('risk_score', 0):
-                        col2.metric("Risk Score", features.get('risk_score'), "0-100 (higher = riskier)")
-                    if features.get('activity_score', 0):
-                        col3.metric("Activity Score", features.get('activity_score'))
+                    # Scores & Risk Assessment
+                    show_scores = any([
+                        features.get('wallet_health_score', 0),
+                        features.get('risk_score', 0),
+                        features.get('activity_score', 0)
+                    ])
+                    if show_scores:
+                        st.subheader("Scores & Risk Assessment")
+                        col1, col2, col3 = st.columns(3)
+                        if features.get('wallet_health_score', 0):
+                            col1.metric("Wallet Health Score", features.get('wallet_health_score'), "0-100")
+                        if features.get('risk_score', 0):
+                            col2.metric("Risk Score", features.get('risk_score'), "0-100 (higher = riskier)")
+                        if features.get('activity_score', 0):
+                            col3.metric("Activity Score", features.get('activity_score'))
 
-                    # Portfolio
-                    st.subheader("Portfolio Overview")
-                    if features.get('total_networth', 0):
-                        st.markdown(f"**Total Networth:** ${features.get('total_networth'):,.2f}")
-                    if features.get('token_count', 0):
-                        st.markdown(f"**Token Count:** {features.get('token_count')}")
-                    if features.get('top_tokens', []):
-                        st.markdown(f"**Top Tokens:** {', '.join(features.get('top_tokens', []))}")
-                    if features.get('defi_protocols', 0):
-                        st.markdown(f"**DeFi Protocols:** {features.get('defi_protocols')}")
-                    if features.get('total_defi_usd', 0):
-                        st.markdown(f"**Total DeFi USD:** ${features.get('total_defi_usd'):,.2f}")
-                    if features.get('unique_nft_collections', 0):
-                        st.markdown(f"**NFT Collections:** {features.get('unique_nft_collections')}")
+                    # Portfolio Overview
+                    show_portfolio = any([
+                        features.get('total_networth', 0),
+                        features.get('token_count', 0),
+                        features.get('top_tokens', []),
+                        features.get('defi_protocols', 0),
+                        features.get('total_defi_usd', 0),
+                        features.get('unique_nft_collections', 0)
+                    ])
+                    if show_portfolio:
+                        st.subheader("Portfolio Overview")
+                        if features.get('total_networth', 0):
+                            st.markdown(f"**Total Networth:** ${features.get('total_networth'):,.2f}")
+                        if features.get('token_count', 0):
+                            st.markdown(f"**Token Count:** {features.get('token_count')}")
+                        if features.get('top_tokens', []):
+                            st.markdown(f"**Top Tokens:** {', '.join(features.get('top_tokens', []))}")
+                        if features.get('defi_protocols', 0):
+                            st.markdown(f"**DeFi Protocols:** {features.get('defi_protocols')}")
+                        if features.get('total_defi_usd', 0):
+                            st.markdown(f"**Total DeFi USD:** ${features.get('total_defi_usd'):,.2f}")
+                        if features.get('unique_nft_collections', 0):
+                            st.markdown(f"**NFT Collections:** {features.get('unique_nft_collections')}")
 
                     # --- Visualizations ---
-                    st.subheader("Visualizations")
                     # Top Tokens Bar Chart
                     token_df = data_dict.get("tokens", pd.DataFrame())
+                    show_bar = False
                     if (
                         not token_df.empty and
                         "wallet" in token_df.columns and
@@ -66,9 +81,10 @@ if st.button("Generate Persona"):
                     ):
                         user_tokens = token_df[token_df["wallet"] == wallet_address]
                         top_tokens = user_tokens.groupby("token_symbol")["usd_value"].sum()
-                        # Only show bar chart if there is at least one nonzero value
                         top_tokens = top_tokens[top_tokens > 0].sort_values(ascending=False).head(10)
                         if not top_tokens.empty:
+                            show_bar = True
+                            st.subheader("Visualizations")
                             fig = px.bar(x=top_tokens.index, y=top_tokens.values, labels={"x": "Token", "y": "USD Value"}, title="Top 10 Tokens by USD Value")
                             st.plotly_chart(fig, use_container_width=True)
 
@@ -85,8 +101,9 @@ if st.button("Generate Persona"):
                     if nft_val > 0:
                         pie_labels.append("NFTs")
                         pie_values.append(nft_val)
-                    # Only show pie chart if there are at least two nonzero categories
                     if len(pie_values) > 1:
+                        if not show_bar:
+                            st.subheader("Visualizations")
                         fig2 = px.pie(values=pie_values, names=pie_labels, title="Portfolio Allocation (USD, NFTs estimated)")
                         st.plotly_chart(fig2, use_container_width=True)
 
