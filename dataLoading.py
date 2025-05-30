@@ -112,8 +112,6 @@ def load_wallet_data(data_dir="web3_kgenX_new"):
         path = base_path / filename
         if path.exists():
             df = pd.read_csv(path)
-            # Fix for NumPy 2.0: replace np.unicode_ with np.str_
-            df = df.applymap(lambda x: x if not isinstance(x, str) else x)
             return df.fillna(np.nan)
         return pd.DataFrame()
 
@@ -130,6 +128,10 @@ def load_wallet_data(data_dir="web3_kgenX_new"):
 def extract_wallet_features(wallet_address, data_dict):
     """Extract features from wallet data, fetching from API if not found locally."""
     features = {"address": wallet_address}
+
+    # Validate wallet address format
+    if not isinstance(wallet_address, str) or not wallet_address.startswith("0x") or len(wallet_address) != 42:
+        raise ValueError("Invalid wallet address format. Please enter a valid Ethereum address (0x... and 42 characters long).")
 
     # Check if wallet exists in any local data file
     wallet_exists = False
@@ -148,7 +150,7 @@ def extract_wallet_features(wallet_address, data_dict):
             print("Successfully fetched wallet data from API")
         else:
             print("Failed to fetch data from API")
-            return None
+            raise ValueError("Wallet address not found in local data or via Moralis API. Please check the address and try again.")
 
     # Always get networth_df from data_dict (may be updated above)
     networth_df = data_dict.get("networth", pd.DataFrame())
