@@ -32,26 +32,42 @@ if st.button("Generate Persona"):
                     # Scores
                     st.subheader("Scores & Risk Assessment")
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("Wallet Health Score", features.get('wallet_health_score', 0), "0-100")
-                    col2.metric("Risk Score", features.get('risk_score', 0), "0-100 (higher = riskier)")
-                    col3.metric("Activity Score", features.get('activity_score', 0))
+                    if features.get('wallet_health_score', 0):
+                        col1.metric("Wallet Health Score", features.get('wallet_health_score'), "0-100")
+                    if features.get('risk_score', 0):
+                        col2.metric("Risk Score", features.get('risk_score'), "0-100 (higher = riskier)")
+                    if features.get('activity_score', 0):
+                        col3.metric("Activity Score", features.get('activity_score'))
 
                     # Portfolio
                     st.subheader("Portfolio Overview")
-                    st.markdown(f"**Total Networth:** ${features.get('total_networth', 0):,.2f}")
-                    st.markdown(f"**Token Count:** {features.get('token_count', 0)}")
-                    st.markdown(f"**Top Tokens:** {', '.join(features.get('top_tokens', []))}")
-                    st.markdown(f"**DeFi Protocols:** {features.get('defi_protocols', 0)}")
-                    st.markdown(f"**Total DeFi USD:** ${features.get('total_defi_usd', 0):,.2f}")
-                    st.markdown(f"**NFT Collections:** {features.get('unique_nft_collections', 0)}")
+                    if features.get('total_networth', 0):
+                        st.markdown(f"**Total Networth:** ${features.get('total_networth'):,.2f}")
+                    if features.get('token_count', 0):
+                        st.markdown(f"**Token Count:** {features.get('token_count')}")
+                    if features.get('top_tokens', []):
+                        st.markdown(f"**Top Tokens:** {', '.join(features.get('top_tokens', []))}")
+                    if features.get('defi_protocols', 0):
+                        st.markdown(f"**DeFi Protocols:** {features.get('defi_protocols')}")
+                    if features.get('total_defi_usd', 0):
+                        st.markdown(f"**Total DeFi USD:** ${features.get('total_defi_usd'):,.2f}")
+                    if features.get('unique_nft_collections', 0):
+                        st.markdown(f"**NFT Collections:** {features.get('unique_nft_collections')}")
 
                     # --- Visualizations ---
                     st.subheader("Visualizations")
                     # Top Tokens Bar Chart
                     token_df = data_dict.get("tokens", pd.DataFrame())
-                    if not token_df.empty and "wallet" in token_df.columns and "token_symbol" in token_df.columns and "usd_value" in token_df.columns:
+                    if (
+                        not token_df.empty and
+                        "wallet" in token_df.columns and
+                        "token_symbol" in token_df.columns and
+                        "usd_value" in token_df.columns
+                    ):
                         user_tokens = token_df[token_df["wallet"] == wallet_address]
-                        top_tokens = user_tokens.groupby("token_symbol")["usd_value"].sum().sort_values(ascending=False).head(10)
+                        top_tokens = user_tokens.groupby("token_symbol")["usd_value"].sum()
+                        # Only show bar chart if there is at least one nonzero value
+                        top_tokens = top_tokens[top_tokens > 0].sort_values(ascending=False).head(10)
                         if not top_tokens.empty:
                             fig = px.bar(x=top_tokens.index, y=top_tokens.values, labels={"x": "Token", "y": "USD Value"}, title="Top 10 Tokens by USD Value")
                             st.plotly_chart(fig, use_container_width=True)
@@ -59,14 +75,18 @@ if st.button("Generate Persona"):
                     # Portfolio Pie Chart (Tokens vs DeFi vs NFTs)
                     pie_labels = []
                     pie_values = []
-                    if features.get("total_networth", 0) > 0:
+                    if features.get("token_balance_usd", 0) > 0:
                         pie_labels.append("Tokens")
                         pie_values.append(features.get("token_balance_usd", 0))
+                    if features.get("total_defi_usd", 0) > 0:
                         pie_labels.append("DeFi")
                         pie_values.append(features.get("total_defi_usd", 0))
+                    nft_val = features.get("unique_nft_collections", 0) * 100
+                    if nft_val > 0:
                         pie_labels.append("NFTs")
-                        # For NFTs, estimate as a count (or set to 0 if not available)
-                        pie_values.append(features.get("unique_nft_collections", 0) * 100)  # Arbitrary value for visualization
+                        pie_values.append(nft_val)
+                    # Only show pie chart if there are at least two nonzero categories
+                    if len(pie_values) > 1:
                         fig2 = px.pie(values=pie_values, names=pie_labels, title="Portfolio Allocation (USD, NFTs estimated)")
                         st.plotly_chart(fig2, use_container_width=True)
 
