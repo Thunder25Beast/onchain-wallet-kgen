@@ -104,15 +104,18 @@ def fetch_wallet_data_from_api(wallet_address):
         print(f"Error fetching data from Moralis API: {e}")
         return None
 
-def load_wallet_data(data_dir="web3_kgenX_new"):
+def load_wallet_data(data_dir="data"):
     """Load and combine wallet data from CSV files."""
     base_path = Path(data_dir)
 
     def safe_load(filename):
         path = base_path / filename
         if path.exists():
-            df = pd.read_csv(path)
-            return df.fillna(np.nan)
+            try:
+                df = pd.read_csv(path)
+                return df.fillna(np.nan)
+            except pd.errors.EmptyDataError:
+                return pd.DataFrame()
         return pd.DataFrame()
 
     data = {
@@ -120,7 +123,9 @@ def load_wallet_data(data_dir="web3_kgenX_new"):
         "tokens": safe_load("token_balances.csv"),
         "defi": safe_load("defi_positions.csv"),
         "nfts": safe_load("nft_collections_cleaned.csv"),
-        "stats": safe_load("wallet_stats.csv")
+        "stats": safe_load("wallet_stats.csv"),
+        "active_chains": safe_load("wallet_active_chains.csv"),
+        "wallets": safe_load("wallets.csv")
     }
     
     return data
@@ -136,8 +141,9 @@ def extract_wallet_features(wallet_address, data_dict):
     # Check if wallet exists in any local data file
     wallet_exists = False
     for key, df in data_dict.items():
-        if not df.empty and "wallet" in df.columns:
-            if wallet_address in df["wallet"].values:
+        if not df.empty and ("wallet" in df.columns or "address" in df.columns):
+            col = "wallet" if "wallet" in df.columns else "address"
+            if wallet_address in df[col].values:
                 wallet_exists = True
                 break
 
@@ -152,7 +158,7 @@ def extract_wallet_features(wallet_address, data_dict):
             print("Failed to fetch data from API")
             raise ValueError("Wallet address not found in local data or via Moralis API. Please check the address and try again.")
 
-    # Always get networth_df from data_dict (may be updated above)
+    # --- Networth ---
     networth_df = data_dict.get("networth", pd.DataFrame())
     if not networth_df.empty:
         row = networth_df[networth_df["wallet"] == wallet_address]
@@ -182,7 +188,7 @@ def extract_wallet_features(wallet_address, data_dict):
             "token_ratio": 0
         })
 
-    # Wallet Stats
+    # --- Wallet Stats ---
     stats_df = data_dict.get("stats", pd.DataFrame())
     if not stats_df.empty:
         row = stats_df[stats_df["wallet"] == wallet_address]
@@ -212,7 +218,7 @@ def extract_wallet_features(wallet_address, data_dict):
             "nft_collections": 0
         })
 
-    # Token Balances
+    # --- Token Balances ---
     token_df = data_dict.get("tokens", pd.DataFrame())
     if not token_df.empty and "wallet" in token_df.columns:
         user_tokens = token_df[token_df["wallet"] == wallet_address]
@@ -226,7 +232,7 @@ def extract_wallet_features(wallet_address, data_dict):
             "top_tokens": []
         })
 
-    # DeFi Positions
+    # --- DeFi Positions ---
     defi_df = data_dict.get("defi", pd.DataFrame())
     if not defi_df.empty:
         user_defi = defi_df[defi_df["wallet"] == wallet_address]
@@ -240,9 +246,30 @@ def extract_wallet_features(wallet_address, data_dict):
             "total_defi_usd": 0.0
         })
 
-    # NFT Collections
-    # Note: nft_collections_cleaned.csv lacks wallet info; relying on stats data
-    features["unique_nft_collections"] = features.get("nft_collections", 0)
+    # --- NFT Collections (from cleaned NFT file) ---
+    nfts_df = data_dict.get("nfts", pd.DataFrame())
+    if not nfts_df.empty and "wallet_address" in nfts_df.columns:
+        user_nfts = nfts_df[nfts_df["wallet_address"] == wallet_address]
+        features["unique_nft_collections"] = user_nfts["token_address"].nunique() if not user_nfts.empty else features.get("nft_collections", 0)
+    else:
+        features["unique_nft_collections"] = features.get("nft_collections", 0)
+
+    # --- Active Chains ---
+    active_chains_df = data_dict.get("active_chains", pd.DataFrame())
+    if not active_chains_df.empty and "wallet" in active_chains_df.columns and "chain" in active_chains_df.columns:
+        user_chains = active_chains_df[active_chains_df["wallet"] == wallet_address]
+        features["active_chains"] = user_chains["chain"].unique().tolist() if not user_chains.empty else []
+    else:
+        features["active_chains"] = []
+
+    # --- Wallets List (for possible bulk features) ---
+    wallets_df = data_dict.get("wallets", pd.DataFrame())
+    features["in_wallets_list"] = False
+    if not wallets_df.empty:
+        if "wallet" in wallets_df.columns and wallet_address in wallets_df["wallet"].values:
+            features["in_wallets_list"] = True
+        elif "address" in wallets_df.columns and wallet_address in wallets_df["address"].values:
+            features["in_wallets_list"] = True
 
     # Derived Scores
     features["activity_score"] = (
