@@ -17,7 +17,7 @@ A modern Streamlit dashboard for analyzing Ethereum wallet addresses and generat
 - [Main Files & Data](#-main-files--data)
 - [Tech Stack](#-tech-stack)
 - [Credits](#-credits)
-- [License](#-license)
+
 
 ---
 
@@ -81,8 +81,8 @@ Below are screenshots of the app in action (see the `images/` folder for more):
 
 1. **Clone the repository:**
    ```powershell
-   git clone https://github.com/Thunder25Beast/onchain-persona-genesis
-   cd streamlit
+   git clone https://github.com/Thunder25Beast/onchain-wallet-kgen
+   cd onchain-wallet-kgen
    ```
 2. **Install dependencies:**
    ```powershell
@@ -164,8 +164,5 @@ Based on their profile, the following recommendations may suit their interests a
 ---
 
 ## 👥 Credits
-- **Project Lead & Developer:** [Team DeFiScore]
+- **Project Lead & Developer:** Team DeFiScore
 
-
-## 📄 License
-MIT License. 
